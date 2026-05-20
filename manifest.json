@@ -2,7 +2,7 @@
   "name": "RFN Tracker",
   "short_name": "RFN",
   "description": "Suivi ferroviaire temps reel reseau ferre national",
-  "start_url": "./rfn-tracker.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#16a34a",

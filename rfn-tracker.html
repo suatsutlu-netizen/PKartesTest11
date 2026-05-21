@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RFN Tracker">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>RFN Tracker</title>
+<link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0a;color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;}
+
+/* HEADER */
+#hdr{flex-shrink:0;background:#0a0a0a;border-bottom:1px solid #1f2937;padding:5px 8px 4px;}
+#hr1{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+#pk-el{font-family:'Courier New',monospace;font-size:26px;font-weight:700;
+  color:#16a34a;letter-spacing:.5px;line-height:1;flex-shrink:0;}
+#pk-el.blink{animation:bpk .4s infinite alternate;}
+@keyframes bpk{from{color:#ef4444;opacity:1}to{color:#7f1d1d;opacity:.35}}
+
+/* Speed display — right side of hr1, grows when >10 km/h */
+#spd-wrap{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;}
+#spd-val{font-family:'Courier New',monospace;font-size:18px;font-weight:700;
+  color:#4ade80;line-height:1;transition:font-size .25s,color .25s;}
+#spd-val.warn{color:#f97316;font-size:54px;}
+#spd-unit{font-size:9px;color:#6b7280;text-align:right;}
+#clock-el{font-family:'Courier New',monospace;font-size:13px;color:#9ca3af;text-align:right;}
+
+#hr2{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:3px;}
+.b{font-size:9px;padding:1px 5px;border-radius:99px;font-weight:600;white-space:nowrap;flex-shrink:0;}
+.bg{background:#1f2937;color:#9ca3af;}
+.gr{background:#14532d;color:#4ade80;}
+.or{background:#431407;color:#fb923c;}
+.rd{background:#450a0a;color:#f87171;}
+.bl{background:#1e3a5f;color:#60a5fa;}
+.yw{background:#422006;color:#fbbf24;}
+
+#ligne-el{font-size:10px;color:#6b7280;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#vmx-wrap{height:4px;background:#1f2937;border-radius:2px;margin-top:3px;display:none;overflow:hidden;}
+#vmx-bar{height:100%;width:0%;border-radius:2px;transition:width .4s,background .4s;background:#16a34a;}
+#hr3{display:flex;align-items:center;gap:6px;margin-top:3px;}
+.bxs{font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #374151;
+  background:#1f2937;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.bxs:active{background:#374151;}
+#chrono-el{font-family:'Courier New',monospace;font-size:11px;color:#9ca3af;}
+
+/* Alerte sonore — bandeau sous le header */
+#alerte-bande{
+  display:none;
+  background:#431407;border-bottom:1px solid #f97316;
+  padding:3px 8px;font-size:11px;font-weight:600;color:#fb923c;
+  text-align:center;flex-shrink:0;letter-spacing:.5px;
+}
+#alerte-bande.visible{display:block;}
+
+/* MAIN */
+#main{flex:1;display:flex;overflow:hidden;position:relative;min-height:0;}
+
+/* MAP */
+#map-wrap{flex:1;position:relative;overflow:hidden;min-width:0;}
+#map{position:absolute;inset:0;}
+#flash{position:absolute;inset:0;background:red;opacity:0;
+  pointer-events:none;z-index:500;transition:opacity .15s;}
+
+.mbt{position:absolute;z-index:900;background:rgba(0,0,0,.78);
+  border:1px solid #374151;color:#fff;border-radius:7px;
+  padding:5px 10px;font-size:11px;cursor:pointer;
+  user-select:none;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.mbt:active{background:rgba(255,255,255,.15);}
+#btn-hup{top:10px;right:10px;}
+#btn-ctr{top:44px;right:10px;display:none;}
+
+#bb{position:absolute;bottom:10px;left:8px;z-index:900;display:flex;gap:5px;flex-wrap:wrap;}
+.pill{background:rgba(0,0,0,.78);border:1px solid #374151;color:#fff;
+  border-radius:99px;padding:5px 10px;font-size:10px;cursor:pointer;
+  user-select:none;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.pill:active{background:rgba(255,255,255,.1);}
+.pill.on{border-color:#16a34a;color:#4ade80;}
+
+#legend{position:absolute;bottom:50px;right:8px;z-index:900;
+  background:rgba(0,0,0,.82);border:1px solid #374151;border-radius:6px;
+  padding:5px 7px;font-size:9px;line-height:1.9;color:#d1d5db;min-width:90px;}
+.leg-row{display:flex;align-items:center;gap:5px;}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.leg-line{width:14px;height:3px;flex-shrink:0;border-radius:2px;}
+
+/* TIMELINE */
+#tl-panel{width:35%;max-width:150px;min-width:100px;background:#0a0a0a;
+  border-left:1px solid #1f2937;display:flex;flex-direction:column;overflow:hidden;}
+#tl-hdr{padding:4px 5px;border-bottom:1px solid #1f2937;font-size:9px;color:#6b7280;
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+#tl-body{flex:1;position:relative;overflow:hidden;min-height:0;}
+#tl-arr{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  z-index:10;pointer-events:none;height:1px;}
+#tl-arr::before{content:'>';color:#fbbf24;font-size:14px;font-weight:700;
+  position:absolute;left:2px;top:50%;transform:translateY(-50%);font-family:'Courier New',monospace;}
+#tl-arr::after{content:'';position:absolute;left:18px;right:0;top:0;height:1px;background:#fbbf24;opacity:.4;}
+#tl-track{position:absolute;left:0;right:0;top:0;will-change:transform;}
+.tl-rail{position:absolute;left:16px;top:0;bottom:0;width:2px;background:#374151;z-index:0;}
+.si{position:absolute;left:0;right:0;height:52px;display:flex;align-items:center;
+  padding-left:24px;padding-right:3px;}
+.si-dot{position:absolute;left:12px;width:9px;height:9px;border-radius:50%;
+  background:#374151;border:2px solid #6b7280;transform:translateX(-50%);z-index:1;}
+.si-info{display:flex;flex-direction:column;overflow:hidden;flex:1;}
+.si-name{font-size:9px;color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;}
+.si-pk{font-family:'Courier New',monospace;font-size:8px;color:#6b7280;}
+.si-dist{font-size:9px;font-weight:700;color:#f97316;margin-top:1px;}
+.si-dist.near{color:#ef4444;}
+.si-dist.vnear{color:#b91c1c;animation:pulse .5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.si.frozen .si-name{font-size:11px;font-weight:700;color:#fbbf24;line-height:1.2;}
+.si.frozen .si-dot{background:#fbbf24;border-color:#fbbf24;}
+.si.frozen{background:rgba(251,191,36,.06);}
+.si.passed{opacity:.16;}
+.si-type{font-size:7px;padding:0 3px;border-radius:3px;display:inline-block;margin-left:2px;}
+.si-type.gare{background:#1e3a5f;color:#60a5fa;}
+.si-type.ite{background:#2e1065;color:#c4b5fd;}
+.si-type.triage{background:#431407;color:#fb923c;}
+
+/* LOG */
+#log-panel{position:fixed;inset:0;z-index:2000;background:#0a0a0a;
+  transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;}
+#log-panel.open{transform:translateX(0);}
+#log-hdr{padding:12px;border-bottom:1px solid #1f2937;display:flex;
+  justify-content:space-between;align-items:center;font-weight:700;font-size:14px;flex-shrink:0;}
+#log-close{font-size:22px;cursor:pointer;color:#6b7280;}
+#log-list{flex:1;overflow-y:auto;padding:8px;}
+.log-e{border:1px solid #1f2937;border-radius:6px;padding:6px 8px;
+  margin-bottom:5px;font-size:11px;line-height:1.7;}
+.lt{color:#6b7280;font-family:monospace;}
+.lg{color:#fbbf24;font-weight:600;}
+.ld{color:#9ca3af;}
+#log-foot{padding:8px 12px;border-top:1px solid #1f2937;flex-shrink:0;}
+#btn-exp{width:100%;padding:8px;background:#16a34a;color:#fff;border:none;
+  border-radius:6px;font-size:13px;cursor:pointer;}
+
+/* LAYERS */
+#layers-panel{position:fixed;inset:0;z-index:2000;background:#0a0a0a;
+  transform:translateX(-100%);transition:transform .3s ease;display:flex;flex-direction:column;}
+#layers-panel.open{transform:translateX(0);}
+#layers-hdr{padding:12px;border-bottom:1px solid #1f2937;display:flex;
+  justify-content:space-between;align-items:center;font-weight:700;font-size:14px;flex-shrink:0;}
+#layers-close{font-size:22px;cursor:pointer;color:#6b7280;}
+#layers-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;}
+.layer-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;
+  background:#111827;border-radius:8px;border:1px solid #1f2937;}
+.layer-name{font-size:13px;font-weight:600;color:#e5e7eb;}
+.layer-desc{font-size:10px;color:#6b7280;margin-top:2px;}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.slider{position:absolute;inset:0;background:#374151;border-radius:99px;
+  cursor:pointer;transition:background .2s;}
+.slider::before{content:'';position:absolute;height:14px;width:14px;left:3px;top:3px;
+  background:#fff;border-radius:50%;transition:transform .2s;}
+.toggle input:checked+.slider{background:#16a34a;}
+.toggle input:checked+.slider::before{transform:translateX(16px);}
+
+/* PWA */
+#install-banner{position:fixed;bottom:0;left:0;right:0;z-index:3000;background:#111827;
+  border-top:1px solid #374151;padding:10px 14px;display:flex;align-items:center;
+  justify-content:space-between;font-size:12px;gap:8px;}
+#install-banner.hidden{display:none;}
+#btn-install{padding:6px 14px;background:#16a34a;border:none;border-radius:6px;
+  color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+#btn-install-dismiss{background:none;border:none;color:#6b7280;font-size:18px;
+  cursor:pointer;padding:2px 6px;}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:#0a0a0a;z-index:4000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+#loading.done{display:none;}
+#loading-bar-wrap{width:200px;height:4px;background:#1f2937;border-radius:2px;overflow:hidden;}
+#loading-bar{height:100%;width:0%;background:#16a34a;border-radius:2px;transition:width .3s;}
+#loading-msg{font-size:12px;color:#6b7280;}
+#loading-title{font-size:16px;font-weight:700;color:#16a34a;letter-spacing:1px;}
+
+.maplibregl-ctrl-attrib{font-size:9px !important;}
+.maplibregl-ctrl-bottom-right{bottom:44px !important;}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div id="loading-title">RFN TRACKER</div>
+  <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+  <div id="loading-msg">Chargement...</div>
+</div>
+
+<div id="app">
+  <div id="hdr">
+    <div id="hr1">
+      <div id="pk-el">PK --+---</div>
+      <div style="flex:1"></div>
+      <div id="spd-wrap">
+        <div id="spd-val">--</div>
+        <div id="spd-unit">km/h</div>
+      </div>
+      <div style="width:8px"></div>
+      <div id="clock-el">--:--:--</div>
+    </div>
+    <div id="hr2">
+      <span id="b-cap"  class="b bg">-- --</span>
+      <span id="b-voie" class="b bg">voie --m</span>
+      <span id="b-gps"  class="b bg">GPS --m</span>
+      <span id="b-vmax" class="b bg" style="display:none">Vmax --</span>
+      <span id="b-seg"  class="b bg" style="display:none">-- --</span>
+    </div>
+    <div id="ligne-el">--</div>
+    <div id="vmx-wrap"><div id="vmx-bar"></div></div>
+    <div id="hr3">
+      <button class="bxs" id="btn-chr">DEPART</button>
+      <span id="chrono-el">00:00:00</span>
+      <span id="b-odo" class="b bg" style="margin-left:auto">0.0 km</span>
+    </div>
+  </div>
+
+  <!-- Bandeau alerte roulage -->
+  <div id="alerte-bande"></div>
+
+  <div id="main">
+    <div id="map-wrap">
+      <div id="map"></div>
+      <div id="flash"></div>
+      <button class="mbt" id="btn-hup">Heading N</button>
+      <button class="mbt" id="btn-ctr">Centrer</button>
+      <div id="legend">
+        <div class="leg-row"><div class="leg-line" style="background:#16a34a"></div>Voie ferree</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#3b82f6"></div>Gare voyageurs</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#6b7280"></div>Gare fret</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#8b5cf6"></div>ITE</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#f97316"></div>Triage</div>
+        <div class="leg-row"><div class="leg-line" style="background:#22d3ee"></div>Trace GPS</div>
+      </div>
+      <div id="bb">
+        <button class="pill" id="btn-layers">Calques</button>
+        <button class="pill" id="btn-night">Nuit</button>
+        <button class="pill" id="btn-reset">Reset GPS</button>
+        <button class="pill on" id="btn-hq">GPS HQ</button>
+        <button class="pill" id="btn-log">Journal</button>
+      </div>
+    </div>
+    <div id="tl-panel">
+      <div id="tl-hdr">
+        <span>GARES</span>
+        <span id="sens-b" class="b bg">--</span>
+      </div>
+      <div id="tl-body">
+        <div id="tl-arr"></div>
+        <div id="tl-track"><div class="tl-rail"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="log-panel">
+  <div id="log-hdr"><span>Journal de trajet</span><span id="log-close">x</span></div>
+  <div id="log-list"><p style="color:#6b7280;padding:12px;font-size:12px">Aucune entree.</p></div>
+  <div id="log-foot"><button id="btn-exp">Export CSV</button></div>
+</div>
+
+<div id="layers-panel">
+  <div id="layers-hdr"><span>Calques carte</span><span id="layers-close">x</span></div>
+  <div id="layers-body"></div>
+</div>
+
+<div id="install-banner" class="hidden">
+  <div>Installer RFN Tracker</div>
+  <button id="btn-install">Installer</button>
+  <button id="btn-install-dismiss">x</button>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>

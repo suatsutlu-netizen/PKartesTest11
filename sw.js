@@ -17,7 +17,7 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => {
       // Cache app shell; data files cached on first fetch
-      return c.addAll(['./rfn-tracker.html','./manifest.json','./icon-192.png','./icon-512.png']);
+      return c.addAll(['./index.html','./manifest.json','./icon-192.png','./icon-512.png']);
     }).then(() => self.skipWaiting())
   );
 });

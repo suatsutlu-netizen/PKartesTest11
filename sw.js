@@ -1,7 +1,7 @@
 /* Service Worker — RFN Tracker PWA */
 const CACHE = 'rfn-v1';
 const ASSETS = [
-  './rfn-tracker.html',
+  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
